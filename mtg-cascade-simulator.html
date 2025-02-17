@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Cascade Simulator - Laelia, the Blade Reforged</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #8a1c1c;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .input-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        .results-panel {
+            flex: 2;
+            min-width: 500px;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #8a1c1c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #b52626;
+        }
+        #stats-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .stat-box {
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            padding: 15px;
+            flex: 1;
+            min-width: 200px;
+        }
+        #cascade-results {
+            margin-top: 20px;
+        }
+        .card-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .card {
+            width: 200px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: scale(1.05);
+        }
+        .card img {
+            width: 100%;
+            height: auto;
+        }
+        .card-info {
+            padding: 8px;
+            background-color: #333;
+            color: white;
+        }
+        .card-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .card-cmc {
+            font-size: 0.8em;
+        }
+        .cascade-chain {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .cascade-step {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        #loading {
+            display: none;
+            color: #8a1c1c;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .arrow {
+            text-align: center;
+            font-size: 24px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>MTG Cascade Simulator - Laelia, the Blade Reforged</h1>
+    
+    <div class="container">
+        <div class="panel input-panel">
+            <h2>Deck Input</h2>
+            <p>Paste your decklist below (format: 1 Card Name)</p>
+            <textarea id="decklist-input" placeholder="1 Laelia, the Blade Reforged
+1 Bloodbraid Elf
+1 Shardless Agent
+..."></textarea>
+            <button id="analyze-button">Analyze Deck</button>
+            <div id="loading">Processing...</div>
+        </div>
+        
+        <div class="panel results-panel">
+            <h2>Deck Analysis</h2>
+            <div id="stats-container">
+                <div class="stat-box">
+                    <h3>Deck Summary</h3>
+                    <div id="deck-summary">Paste your decklist and click "Analyze Deck"</div>
+                </div>
+                <div class="stat-box">
+                    <h3>Cascade Statistics</h3>
+                    <div id="cascade-stats"></div>
+                </div>
+            </div>
+            
+            <h2>Cascade Simulation</h2>
+            <div id="simulation-controls">
+                <label for="cascade-cmc">Cascade from CMC:</label>
+                <select id="cascade-cmc">
+                    <option value="3">3 (e.g., Shardless Agent)</option>
+                    <option value="4">4 (e.g., Bloodbraid Elf)</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                </select>
+                <button id="simulate-button">Simulate Cascade</button>
+                <button id="simulate-multiple-button">Simulate 100 Cascades</button>
+            </div>
+            
+            <div id="cascade-results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let deck = [];
+        let cmcDistribution = {};
+        
+        document.getElementById('analyze-button').addEventListener('click', analyzeDeck);
+        document.getElementById('simulate-button').addEventListener('click', simulateCascade);
+        document.getElementById('simulate-multiple-button').addEventListener('click', simulateMultipleCascades);
+        
+        async function analyzeDeck() {
+            const decklistText = document.getElementById('decklist-input').value.trim();
+            if (!decklistText) {
+                alert('Please enter a decklist');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            
+            // Parse decklist
+            const lines = decklistText.split('\n');
+            deck = [];
+            
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                
+                const match = line.match(/^(\d+)\s+(.+)$/);
+                if (match) {
+                    const quantity = parseInt(match[1]);
+                    const cardName = match[2].trim();
+                    
+                    try {
+                        const cardData = await fetchCardData(cardName);
+                        if (cardData) {
+                            for (let i = 0; i < quantity; i++) {
+                                deck.push(cardData);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching data for ${cardName}:`, error);
+                    }
+                }
+            }
+            
+            // Calculate CMC distribution
+            cmcDistribution = {};
+            for (const card of deck) {
+                const cmc = card.cmc || 0;
+                cmcDistribution[cmc] = (cmcDistribution[cmc] || 0) + 1;
+            }
+            
+            // Display deck summary
+            displayDeckSummary();
+            
+            // Calculate and display cascade statistics
+            displayCascadeStats();
+            
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        async function fetchCardData(cardName) {
+            try {
+                const response = await fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`);
+                if (!response.ok) throw new Error('Card not found');
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching data for ${cardName}:`, error);
+                return null;
+            }
+        }
+        
+        function displayDeckSummary() {
+            if (deck.length === 0) {
+                document.getElementById('deck-summary').innerHTML = '<p>No valid cards found</p>';
+                return;
+            }
+            
+            let summaryHTML = `<p><strong>Total cards:</strong> ${deck.length}</p>`;
+            
+            // CMC distribution
+            summaryHTML += '<p><strong>CMC Distribution:</strong></p><ul>';
+            const sortedCMCs = Object.keys(cmcDistribution).sort((a, b) => Number(a) - Number(b));
+            for (const cmc of sortedCMCs) {
+                const percentage = ((cmcDistribution[cmc] / deck.length) * 100).toFixed(1);
+                summaryHTML += `<li>CMC ${cmc}: ${cmcDistribution[cmc]} cards (${percentage}%)</li>`;
+            }
+            summaryHTML += '</ul>';
+            
+            // Count cascade cards
+            const cascadeCards = deck.filter(card => 
+                card.oracle_text && card.oracle_text.toLowerCase().includes('cascade')
+            );
+            
+            if (cascadeCards.length > 0) {
+                summaryHTML += `<p><strong>Cascade cards:</strong> ${cascadeCards.length}</p>`;
+                summaryHTML += '<ul>';
+                const cascadeCardCounts = {};
+                for (const card of cascadeCards) {
+                    cascadeCardCounts[card.name] = (cascadeCardCounts[card.name] || 0) + 1;
+                }
+                for (const [name, count] of Object.entries(cascadeCardCounts)) {
+                    summaryHTML += `<li>${name}: ${count}</li>`;
+                }
+                summaryHTML += '</ul>';
+            } else {
+                summaryHTML += '<p>No cascade cards found in deck</p>';
+            }
+            
+            document.getElementById('deck-summary').innerHTML = summaryHTML;
+        }
+        
+        function displayCascadeStats() {
+            if (deck.length === 0) {
+                document.getElementById('cascade-stats').innerHTML = '<p>Analyze your deck first</p>';
+                return;
+            }
+            
+            let statsHTML = '<p><strong>Average Cascades by CMC:</strong></p>';
+            
+            // For each possible cascade CMC, calculate average cascades
+            for (let cascadeCMC = 3; cascadeCMC <= 7; cascadeCMC++) {
+                const avgCascades = calculateAverageCascades(cascadeCMC);
+                statsHTML += `<p>From CMC ${cascadeCMC}: ${avgCascades.toFixed(2)} average cascades</p>`;
+            }
+            
+            document.getElementById('cascade-stats').innerHTML = statsHTML;
+        }
+        
+        function calculateAverageCascades(cascadeCMC) {
+            // Filter valid cascade targets (cards with lower CMC)
+            const validTargets = deck.filter(card => card.cmc < cascadeCMC);
+            
+            if (validTargets.length === 0 || deck.length === 0) return 0;
+            
+            // Calculate chance of hitting another cascade card
+            const cascadeTargets = validTargets.filter(card => 
+                card.oracle_text && card.oracle_text.toLowerCase().includes('cascade')
+            );
+            
+            const cascadeChance = cascadeTargets.length / validTargets.length;
+            
+            // Geometric series sum formula for expected value
+            if (cascadeChance === 0) return 1; // Just the initial cascade
+            
+            // Expected value = 1 / (1 - p) for p < 1
+            return 1 / (1 - cascadeChance);
+        }
+        
+        async function simulateCascade() {
+            if (deck.length === 0) {
+                alert('Please analyze your deck first');
+                return;
+            }
+            
+            const cascadeCMC = parseInt(document.getElementById('cascade-cmc').value);
+            const resultsContainer = document.getElementById('cascade-results');
+            resultsContainer.innerHTML = '';
+            
+            const cascadeChain = await performCascade(cascadeCMC);
+            displayCascadeChain(cascadeChain, resultsContainer);
+        }
+        
+        async function simulateMultipleCascades() {
+            if (deck.length === 0) {
+                alert('Please analyze your deck first');
+                return;
+            }
+            
+            const cascadeCMC = parseInt(document.getElementById('cascade-cmc').value);
+            const resultsContainer = document.getElementById('cascade-results');
+            resultsContainer.innerHTML = '<h3>Simulating 100 Cascades...</h3>';
+            
+            let totalCascades = 0;
+            let maxChainLength = 0;
+            
+            // Simulate 100 cascades
+            for (let i = 0; i < 100; i++) {
+                const cascadeChain = await performCascade(cascadeCMC, false);
+                totalCascades += cascadeChain.length;
+                maxChainLength = Math.max(maxChainLength, cascadeChain.length);
+            }
+            
+            const avgCascades = totalCascades / 100;
+            
+            const summaryHTML = `
+                <div class="panel">
+                    <h3>Simulation Results (100 cascades from CMC ${cascadeCMC})</h3>
+                    <p><strong>Average cascade chain length:</strong> ${avgCascades.toFixed(2)}</p>
+                    <p><strong>Longest chain:</strong> ${maxChainLength}</p>
+                    <p>This matches our theoretical expected value of approximately ${calculateAverageCascades(cascadeCMC).toFixed(2)} cascades.</p>
+                </div>
+            `;
+            
+            resultsContainer.innerHTML = summaryHTML;
+        }
+        
+        async function performCascade(cmcValue, fetchImages = true) {
+            const cascadeChain = [];
+            let currentCMC = cmcValue;
+            
+            while (true) {
+                // Find valid targets (cards with CMC < currentCMC)
+                const validTargets = deck.filter(card => card.cmc < currentCMC);
+                
+                if (validTargets.length === 0) break;
+                
+                // Randomly select a card
+                const selectedCard = validTargets[Math.floor(Math.random() * validTargets.length)];
+                let cardWithImage = selectedCard;
+                
+                // If we need images and this is the first cascade, ensure we get an image
+                if (fetchImages && !selectedCard.image_uris && !selectedCard.card_faces) {
+                    try {
+                        cardWithImage = await fetchCardData(selectedCard.name);
+                    } catch (error) {
+                        console.error(`Error fetching image for ${selectedCard.name}:`, error);
+                        cardWithImage = selectedCard;
+                    }
+                }
+                
+                cascadeChain.push(cardWithImage);
+                
+                // Check if the selected card has cascade
+                const hasCascade = selectedCard.oracle_text && 
+                                  selectedCard.oracle_text.toLowerCase().includes('cascade');
+                
+                if (!hasCascade) break;
+                
+                currentCMC = selectedCard.cmc;
+            }
+            
+            return cascadeChain;
+        }
+        
+        function displayCascadeChain(chain, container) {
+            const chainDiv = document.createElement('div');
+            chainDiv.className = 'cascade-chain';
+            
+            // Display initial cascade spell
+            const cmcValue = document.getElementById('cascade-cmc').value;
+            chainDiv.innerHTML = `
+                <h3>Cascade Chain (Starting from CMC ${cmcValue})</h3>
+                <p>Chain length: ${chain.length} cascade(s)</p>
+            `;
+            
+            // Display the cards
+            const cardDisplay = document.createElement('div');
+            cardDisplay.className = 'card-display';
+            
+            for (let i = 0; i < chain.length; i++) {
+                const card = chain[i];
+                
+                // Create card element
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                
+                // Get image URL
+                let imageUrl;
+                if (card.image_uris) {
+                    imageUrl = card.image_uris.normal;
+                } else if (card.card_faces && card.card_faces[0].image_uris) {
+                    imageUrl = card.card_faces[0].image_uris.normal;
+                } else {
+                    imageUrl = '/api/placeholder/200/280';
+                }
+                
+                // Create HTML for card
+                cardElement.innerHTML = `
+                    <img src="${imageUrl}" alt="${card.name}">
+                    <div class="card-info">
+                        <div class="card-name">${card.name}</div>
+                        <div class="card-cmc">CMC: ${card.cmc}</div>
+                    </div>
+                `;
+                
+                cardDisplay.appendChild(cardElement);
+                
+                // Add arrow if not the last card
+                if (i < chain.length - 1) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'arrow';
+                    arrow.textContent = '↓';
+                    cardDisplay.appendChild(arrow);
+                }
+            }
+            
+            chainDiv.appendChild(cardDisplay);
+            container.appendChild(chainDiv);
+        }
+    </script>
+</body>
+</html>
