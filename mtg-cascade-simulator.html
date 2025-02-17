@@ -137,9 +137,9 @@
         <div class="panel input-panel">
             <h2>Deck Input</h2>
             <p>Paste your decklist below (format: 1 Card Name)</p>
-            <textarea id="decklist-input" placeholder="1 Laelia, the Blade Reforged
-1 Bloodbraid Elf
-1 Shardless Agent
+            <textarea id="decklist-input" placeholder="1 Laelia, the Blade Reforged (MH3) 281
+1 Abrade (2XM) 114
+1 Arc-Slogger (MRD) 85
 ..."></textarea>
             <button id="analyze-button">Analyze Deck</button>
             <div id="loading">Processing...</div>
@@ -165,7 +165,7 @@
                     <option value="2">1</option>
                     <option value="2">2 (e.g., Bloodbraid Marauder)</option>
                     <option value="3">3 (e.g., Shardless Agent)</option>
-                    <option value="4">4 (e.g., Throes of Chaos)</option>
+                    <option value="4" selected="selected">4 (e.g., Throes of Chaos)</option>
                     <option value="5">5 (e.g., Into the Time Vortex)</option>
                     <option value="6">6</option>
                     <option value="7">7</option>
@@ -275,12 +275,14 @@
             if (cascadeCards.length > 0) {
                 summaryHTML += `<p><strong>Cascade cards:</strong> ${cascadeCards.length}</p>`;
                 summaryHTML += '<ul>';
-                const cascadeCardCounts = {};
+                //const cascadeCardCounts = {};
                 for (const card of cascadeCards) {
-                    cascadeCardCounts[card.name] = (cascadeCardCounts[card.name] || 0) + 1;
+                    card.count = (card.count  || 0) + 1
+                    //cascadeCardCounts[card.name] = (cascadeCardCounts[card.name] || 0) + 1;
                 }
-                for (const [name, count] of Object.entries(cascadeCardCounts)) {
-                    summaryHTML += `<li>${name}: ${count}</li>`;
+                //for (const [name, count] of Object.entries(cascadeCardCounts)) {
+                for (const card of cascadeCards.sort(function(a,b) {return (a.cmc > b.cmc) ? 1 : ((b.cmc > a.cmc) ? -1 : 0);} )) {
+                    summaryHTML += `<li>${card.count} ${card.name} - CMC ${card.cmc}</li>`;
                 }
                 summaryHTML += '</ul>';
             } else {
@@ -299,7 +301,7 @@
             let statsHTML = '<p><strong>Average Cascades by CMC:</strong></p>';
             
             // For each possible cascade CMC, calculate average cascades
-            for (let cascadeCMC = 3; cascadeCMC <= 7; cascadeCMC++) {
+            for (let cascadeCMC = 2; cascadeCMC <= 8; cascadeCMC++) {
                 const avgCascades = calculateAverageCascades(cascadeCMC);
                 statsHTML += `<p>From CMC ${cascadeCMC}: ${avgCascades.toFixed(2)} average cascades</p>`;
             }
@@ -308,23 +310,29 @@
         }
         
         function calculateAverageCascades(cascadeCMC) {
-            // Filter valid cascade targets (cards with lower CMC)
-            const validTargets = deck.filter(card => card.cmc < cascadeCMC);
-            
-            if (validTargets.length === 0 || deck.length === 0) return 0;
-            
-            // Calculate chance of hitting another cascade card
-            const cascadeTargets = validTargets.filter(card => 
-                card.oracle_text && card.oracle_text.toLowerCase().includes('cascade')
-            );
-            
-            const cascadeChance = cascadeTargets.length / validTargets.length;
-            
-            // Geometric series sum formula for expected value
-            if (cascadeChance === 0) return 1; // Just the initial cascade
-            
-            // Expected value = 1 / (1 - p) for p < 1
-            return 1 / (1 - cascadeChance);
+            let totalCascades = 0;
+            let simulations = 1000; // Number of simulations for averaging
+
+            for (let i = 0; i < simulations; i++) {
+                let tempDeck = [...deck]; // Copy the deck for simulation
+                let cascadeChainLength = 0;
+
+                while (tempDeck.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * tempDeck.length);
+                    const [selectedCard] = tempDeck.splice(randomIndex, 1);
+
+                    if (selectedCard.type_line.toLowerCase().includes('land') || selectedCard.cmc >= cascadeCMC) {
+                        cascadeChainLength++;
+                    } else {
+                        cascadeChainLength++;
+                        break;
+                    }
+                }
+
+                totalCascades += cascadeChainLength;
+            }
+
+            return totalCascades / simulations; // Return the average cascades
         }
         
         async function simulateCascade() {
@@ -368,7 +376,7 @@
                     <h3>Simulation Results (100 cascades from CMC ${cascadeCMC})</h3>
                     <p><strong>Average cascade chain length:</strong> ${avgCascades.toFixed(2)}</p>
                     <p><strong>Longest chain:</strong> ${maxChainLength}</p>
-                    <p>This matches our theoretical expected value of approximately ${calculateAverageCascades(cascadeCMC).toFixed(2)} cascades.</p>
+                    <!--p>This matches our theoretical expected value of approximately ${calculateAverageCascades(cascadeCMC).toFixed(2)} cascades.</p-->
                 </div>
             `;
             
@@ -378,12 +386,14 @@
         async function performCascade(cmcValue, fetchImages = true) {
             
             const cascadeChain = [];
-            const tempDeck = deck
+            let tempDeck = [...deck];
             
             while (tempDeck.length > 0) {
 
-                const randomIndex = Math.floor(Math.random() * deck.length);
-                const [selectedCard] = deck.splice(randomIndex, 1);
+                const randomIndex = Math.floor(Math.random() * tempDeck.length);
+                const [selectedCard] = tempDeck.splice(randomIndex, 1);
+                console.log(randomIndex)
+                console.log(selectedCard)
                 let cardWithImage = selectedCard;
 
                 // If we need images and this is the first cascade, ensure we get an image
@@ -441,14 +451,25 @@
                     imageUrl = '/api/placeholder/200/280';
                 }
                 
-                // Create HTML for card
-                cardElement.innerHTML = `
-                    <img src="${imageUrl}" alt="${card.name}">
-                    <div class="card-info">
-                        <div class="card-name">${card.name}</div>
-                        <div class="card-cmc">CMC: ${card.cmc}</div>
-                    </div>
-                `;
+                if ( card.type_line.toLowerCase().includes('land') ) {
+                    // Create HTML for card
+                    cardElement.innerHTML = `
+                        <img src="${imageUrl}" alt="${card.name}">
+                        <div class="card-info">
+                            <div class="card-name">${card.name}</div>
+                            <div class="card-cmc">Land</div>
+                        </div>
+                    `;
+                } else {
+                    // Create HTML for card
+                    cardElement.innerHTML = `
+                        <img src="${imageUrl}" alt="${card.name}">
+                        <div class="card-info">
+                            <div class="card-name">${card.name}</div>
+                            <div class="card-cmc">CMC: ${card.cmc}</div>
+                        </div>
+                    `;
+                }
                 
                 cardDisplay.appendChild(cardElement);
                 
