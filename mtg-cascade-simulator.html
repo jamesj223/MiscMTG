@@ -162,7 +162,7 @@
             <div id="simulation-controls">
                 <label for="cascade-cmc">Cascade from CMC:</label>
                 <select id="cascade-cmc">
-                    <option value="2">1</option>
+                    <option value="1">1</option>
                     <option value="2">2 (e.g., Bloodbraid Marauder)</option>
                     <option value="3">3 (e.g., Shardless Agent)</option>
                     <option value="4" selected="selected">4 (e.g., Throes of Chaos)</option>
@@ -226,8 +226,13 @@
             // Calculate CMC distribution
             cmcDistribution = {};
             for (const card of deck) {
-                const cmc = card.cmc || 0;
-                cmcDistribution[cmc] = (cmcDistribution[cmc] || 0) + 1;
+                if (card.type_line.toLowerCase().includes('land')) {
+                    cmcDistribution["Lands"] = (cmcDistribution["Lands"] || 0) + 1;
+                } else {
+                    const cmc = card.cmc || 0;
+                    cmcDistribution[cmc] = (cmcDistribution[cmc] || 0) + 1;
+                }
+
             }
             
             // Display deck summary
@@ -260,10 +265,15 @@
             
             // CMC distribution
             summaryHTML += '<p><strong>CMC Distribution:</strong></p><ul>';
+            
             const sortedCMCs = Object.keys(cmcDistribution).sort((a, b) => Number(a) - Number(b));
             for (const cmc of sortedCMCs) {
-                const percentage = ((cmcDistribution[cmc] / deck.length) * 100).toFixed(1);
-                summaryHTML += `<li>CMC ${cmc}: ${cmcDistribution[cmc]} cards (${percentage}%)</li>`;
+                let percentage = ((cmcDistribution[cmc] / deck.length) * 100).toFixed(1);
+                if (cmc == "Lands"){
+                    summaryHTML += `<li>Lands: ${cmcDistribution[cmc]} (${percentage}%)</li>`;
+                } else { 
+                    summaryHTML += `<li>CMC ${cmc}: ${cmcDistribution[cmc]} cards (${percentage}%)</li>`;
+                }
             }
             summaryHTML += '</ul>';
             
