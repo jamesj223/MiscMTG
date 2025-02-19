@@ -128,6 +128,22 @@
             font-size: 24px;
             margin: 10px 0;
         }
+        .card-tooltip {
+            display: none;
+            position: absolute;
+            z-index: 10;
+            width: 200px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        .card-tooltip img {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+        .card-name:hover + .card-tooltip {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -255,7 +271,7 @@
             }
         }
         
-        function displayDeckSummary() {
+        function displayDeckSummaryOLD() {
             if (deck.length === 0) {
                 document.getElementById('deck-summary').innerHTML = '<p>No valid cards found</p>';
                 return;
@@ -300,6 +316,84 @@
             }
             
             document.getElementById('deck-summary').innerHTML = summaryHTML;
+        }
+
+        function displayDeckSummary() {
+            if (deck.length === 0) {
+                document.getElementById('deck-summary').innerHTML = '<p>No valid cards found</p>';
+                return;
+            }
+            
+            let summaryHTML = `<p><strong>Total cards:</strong> ${deck.length}</p>`;
+            
+            // CMC distribution
+            summaryHTML += '<p><strong>CMC Distribution:</strong></p><ul>';
+            
+            const sortedCMCs = Object.keys(cmcDistribution).sort((a, b) => Number(a) - Number(b));
+            for (const cmc of sortedCMCs) {
+                let percentage = ((cmcDistribution[cmc] / deck.length) * 100).toFixed(1);
+                if (cmc == "Lands"){
+                    summaryHTML += `<li>Lands: ${cmcDistribution[cmc]} (${percentage}%)</li>`;
+                } else { 
+                    summaryHTML += `<li>CMC ${cmc}: ${cmcDistribution[cmc]} cards (${percentage}%)</li>`;
+                }
+            }
+            summaryHTML += '</ul>';
+            
+            // Count cascade cards
+            const cascadeCards = deck.filter(card => 
+                card.oracle_text && card.oracle_text.toLowerCase().includes('cascade')
+            );
+            
+            if (cascadeCards.length > 0) {
+                summaryHTML += `<p><strong>Cascade cards:</strong> ${cascadeCards.length}</p>`;
+                summaryHTML += '<ul>';
+                for (const card of cascadeCards.sort((a, b) => a.cmc - b.cmc)) {
+                    summaryHTML += `<li>
+                        <span class="card-name" data-image="${card.image_uris ? card.image_uris.normal : ''}">
+                            ${card.name} - CMC ${card.cmc}
+                        </span>
+                    </li>`;
+                }
+                summaryHTML += '</ul>';
+            } else {
+                summaryHTML += '<p>No cascade cards found in deck</p>';
+            }
+            
+            document.getElementById('deck-summary').innerHTML = summaryHTML;
+            
+            // Add hover event listeners to card names
+            const cardNames = document.querySelectorAll('.card-name');
+            cardNames.forEach(cardName => {
+                cardName.addEventListener('mouseover', showCardTooltip);
+                cardName.addEventListener('mouseout', hideCardTooltip);
+            });
+        }
+
+        function showCardTooltip(event) {
+            const cardName = event.target;
+            const imageUrl = cardName.getAttribute('data-image');
+
+            if (imageUrl) {
+                let tooltip = document.createElement('div');
+                tooltip.className = 'card-tooltip';
+                tooltip.innerHTML = `<img src="${imageUrl}" alt="Card image">`;
+                document.body.appendChild(tooltip);
+
+                const rect = cardName.getBoundingClientRect();
+                tooltip.style.left = `${rect.left}px`;
+                tooltip.style.top = `${rect.bottom + window.scrollY}px`;
+                tooltip.style.display = `block`;
+                cardName._tooltip = tooltip;
+            }
+        }
+
+        function hideCardTooltip(event) {
+            const cardName = event.target;
+            if (cardName._tooltip) {
+                document.body.removeChild(cardName._tooltip);
+                cardName._tooltip = null;
+            }
         }
         
         function displayCascadeStats() {
