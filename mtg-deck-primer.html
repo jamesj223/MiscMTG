@@ -22,7 +22,7 @@
         <input type="text" id="deckUrl" name="deckUrl" required>
         <button type="submit">Generate Primer</button>
     </form>
-    <canvas id="frontCanvas" width="350" height="500"></canvas>
+    <canvas id="frontCanvas" width="375" height="523"></canvas>
     <canvas id="backCanvas" width="350" height="500"></canvas>
 
     <script>
@@ -55,30 +55,40 @@
                 const backCanvas = document.getElementById('backCanvas');
                 const backCtx = backCanvas.getContext('2d');
 
+                const blankCardImg = new Image();
+                blankCardImg.src = 'https://example.com/path-to-blank-mtg-card-frame.png'; 
                 const commanderImg = new Image();
                 commanderImg.src = commanderImage;
-                commanderImg.onload = function() {
-                    frontCtx.clearRect(0, 0, frontCanvas.width, frontCanvas.height);
-                    frontCtx.font = '16px Arial';
-                    frontCtx.fillText(`Deck Name: ${deckName}`, 10, 30);
-                    frontCtx.drawImage(commanderImg, 10, 50, 330, 200);
-                    frontCtx.fillText(`Artist: ${artistName}`, 10, 270);
-                    frontCtx.fillText(`Commander: ${commander}`, 10, 300);
-                    frontCtx.fillText(`Bracket: ${bracket}`, 10, 330);
-                    frontCtx.fillText(`${gamechangers.length} Gamechangers: ${gamechangers}`, 10, 360);
-                    frontCtx.fillText(`${tutors.length} Tutors: ${tutors}`, 10, 390);
-                    frontCtx.fillText(`Basics: ${basics}`, 10, 420);
-                    frontCtx.fillText(`Total Lands: ${totalLands}`, 10, 450);
 
-                    backCtx.clearRect(0, 0, backCanvas.width, backCanvas.height);
-                    backCtx.font = '16px Arial';
-                    backCtx.fillText(`Deck Description:`, 10, 30);
-                    backCtx.fillText(description, 10, 60, 330);
-                    QRCode.toCanvas(backCanvas, deckUrl, { width: 100, margin: 1 }, function(error) {
-                        if (error) console.error(error);
-                        console.log('QR code generated!');
-                    });
+                blankCardImg.onload = function() {
+                    frontCtx.clearRect(0, 0, frontCanvas.width, frontCanvas.height);
+                    frontCtx.drawImage(blankCardImg, 0, 0, frontCanvas.width, frontCanvas.height);
+
+                    commanderImg.onload = function() {
+                        frontCtx.drawImage(commanderImg, 50, 75, 275, 200); 
+                        frontCtx.font = '20px Arial';
+                        frontCtx.fillText(deckName, 30, 40);
+                        frontCtx.font = '16px Arial';
+                        frontCtx.fillText(commander, 30, 295); 
+                        frontCtx.fillText(`Artist: ${artistName}`, 30, 320); 
+
+                        frontCtx.font = '14px Arial';
+                        frontCtx.fillText(`Bracket: ${bracket}`, 30, 350);
+                        frontCtx.fillText(`${gamechangers.length} Gamechangers: ${gamechangers}`, 30, 370);
+                        frontCtx.fillText(`${tutors.length} Tutors: ${tutors}`, 30, 390);
+                        frontCtx.fillText(`Basics: ${basics}`, 30, 410);
+                        frontCtx.fillText(`Total Lands: ${totalLands}`, 30, 430);
+                    };
                 };
+
+                backCtx.clearRect(0, 0, backCanvas.width, backCanvas.height);
+                backCtx.font = '16px Arial';
+                backCtx.fillText(`Deck Description:`, 10, 30);
+                backCtx.fillText(description, 10, 60, 330);
+                QRCode.toCanvas(backCanvas, deckUrl, { width: 100, margin: 1 }, function(error) {
+                    if (error) console.error(error);
+                    console.log('QR code generated!');
+                });
 
             } catch (error) {
                 console.error('Error fetching deck data:', error);
