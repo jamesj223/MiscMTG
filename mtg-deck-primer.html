@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deck Primer Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deck Primer Generator</h1>
+    <form id="deckForm">
+        <label for="deckUrl">Moxfield Deck URL:</label>
+        <input type="text" id="deckUrl" name="deckUrl" required>
+        <button type="submit">Generate Primer</button>
+    </form>
+    <canvas id="canvas" width="350" height="500"></canvas>
+
+    <script>
+        document.getElementById('deckForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const deckUrl = document.getElementById('deckUrl').value;
+            const deckId = deckUrl.split('/').pop();
+
+            try {
+                const response = await fetch(`https://api2.moxfield.com/v2/decks/all/${deckId}`);
+                const deckData = await response.json();
+
+                const deckName = deckData.name;
+                const commander = deckData.commanders[0].name;
+                const bracket = deckData.bracket;
+                const gamechangers = deckData.gamechangers.length;
+                const tutors = deckData.tutors.length;
+                const basics = deckData.basics.length;
+                const totalLands = deckData.lands.length;
+
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = '16px Arial';
+                ctx.fillText(`Deck Name: ${deckName}`, 10, 30);
+                ctx.fillText(`Commander: ${commander}`, 10, 60);
+                ctx.fillText(`Bracket: ${bracket}`, 10, 90);
+                ctx.fillText(`Gamechangers: ${gamechangers}`, 10, 120);
+                ctx.fillText(`Tutors: ${tutors}`, 10, 150);
+                ctx.fillText(`Basics: ${basics}`, 10, 180);
+                ctx.fillText(`Total Lands: ${totalLands}`, 10, 210);
+
+                QRCode.toCanvas(canvas, deckUrl, { width: 100 }, function(error) {
+                    if (error) console.error(error);
+                    console.log('QR code generated!');
+                });
+            } catch (error) {
+                console.error('Error fetching deck data:', error);
+            }
+        });
+    </script>
+</body>
+</html>
