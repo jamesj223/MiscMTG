@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commander Bag</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --felt: #16332a;
+    --felt-dark: #0e211b;
+    --felt-panel: #1c3d32;
+    --ink: #f5f1e6;
+    --ink-dim: #a9bdb2;
+    --ink-faint: #6f8377;
+    --brass: #c9a24b;
+    --brass-dim: #8a7238;
+    --ember: #b5533c;
+    --slot-border: rgba(201,162,75,0.45);
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    --radius-card: 14px;
+    --mana-w: #f4ecd2; --mana-u: #2f7fc1; --mana-b: #4a4a52; --mana-r: #d4573a; --mana-g: #4f8f5b; --mana-c: #9aa5a0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(ellipse at top, #1a3d32 0%, var(--felt) 55%, var(--felt-dark) 100%);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 28px 20px 80px;
+  }
+  a{color:inherit;}
+  ::selection{ background: var(--brass); color: var(--felt-dark); }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; }
+
+  header.page{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:16px;
+    margin-bottom: 22px; flex-wrap: wrap;
+  }
+  h1{
+    font-family:'Fraunces', serif; font-weight:700; font-size: 2.1rem;
+    margin:0; letter-spacing: 0.01em; color: var(--ink);
+  }
+  h1 span{ color: var(--brass); }
+  .subtitle{ color: var(--ink-dim); font-size: 0.92rem; margin-top: 4px; }
+
+  .btn{
+    font-family:'IBM Plex Sans', sans-serif; font-size: 0.85rem; font-weight:500;
+    border-radius: 8px; border: 1px solid var(--slot-border); background: transparent;
+    color: var(--ink); padding: 8px 14px; cursor:pointer; transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover{ background: rgba(201,162,75,0.12); border-color: var(--brass); }
+  .btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline: 2px solid var(--brass); outline-offset: 2px;
+  }
+  .btn.primary{ background: var(--brass); color: var(--felt-dark); border-color: var(--brass); font-weight:600; }
+  .btn.primary:hover{ background: #ddb862; }
+  .btn.ghost{ border-color: transparent; color: var(--ink-dim); }
+  .btn.ghost:hover{ color: var(--ink); background: rgba(255,255,255,0.05); }
+  .btn.small{ padding: 5px 10px; font-size: 0.78rem; }
+  .header-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* ---------- BAG PANEL ---------- */
+  .bag-panel{
+    background: linear-gradient(180deg, var(--felt-panel), var(--felt-dark));
+    border: 1px solid rgba(201,162,75,0.18);
+    border-radius: 18px; padding: 20px 22px 22px; box-shadow: var(--shadow);
+    margin-bottom: 22px;
+  }
+  .bag-toprow{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;
+    margin-bottom:16px;
+  }
+  .bag-label{
+    font-family:'Fraunces', serif; font-weight:600; color: var(--brass);
+    text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.78rem;
+  }
+  .slot-count{ display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--ink-dim);}
+  .stepper{ display:flex; align-items:center; border:1px solid var(--slot-border); border-radius:8px; overflow:hidden; }
+  .stepper button{ background:none; border:none; color:var(--ink); width:28px; height:28px; cursor:pointer; font-size:1rem;}
+  .stepper button:hover{ background: rgba(201,162,75,0.15); }
+  .stepper span{ min-width: 24px; text-align:center; font-family:'IBM Plex Mono', monospace; }
+
+  .slider-row{ display:flex; align-items:center; gap:10px; font-size:0.78rem; color: var(--ink-dim); flex:1; min-width:220px; max-width: 360px;}
+  .slider-row input[type=range]{ flex:1; accent-color: var(--brass); }
+
+  .bag-slots{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 14px;
+  }
+  .slot{
+    aspect-ratio: 5/7; border-radius: var(--radius-card);
+    position:relative; cursor: grab; user-select:none;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .slot.empty{
+    border: 2px dashed var(--slot-border); background: rgba(0,0,0,0.15);
+    display:flex; align-items:center; justify-content:center; cursor: default;
+  }
+  .slot.empty::after{ content:"empty"; color: var(--ink-faint); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; }
+  .slot.empty.dragover{ border-color: var(--brass); background: rgba(201,162,75,0.1); }
+  .slot.filled{
+    background-size: cover; background-position: center;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    border: 1px solid rgba(0,0,0,0.4);
+    overflow:hidden;
+  }
+  .slot.filled:hover{ transform: translateY(-3px); }
+  .slot.filled.dragging{ opacity:0.35; }
+  .slot .nameplate{
+    position:absolute; left:0; right:0; bottom:0;
+    background: linear-gradient(0deg, rgba(10,20,16,0.95), rgba(10,20,16,0.0));
+    padding: 18px 8px 7px;
+  }
+  .slot .nameplate .cmdr{ font-family:'Fraunces', serif; font-weight:600; font-size:0.82rem; line-height:1.15; color:var(--ink); }
+  .slot .nameplate .subrow{ display:flex; justify-content:space-between; align-items:center; margin-top:2px; }
+  .slot .nameplate .bracket{ font-family:'IBM Plex Mono', monospace; font-size:0.65rem; color: var(--brass); }
+  .slot .remove-x{
+    position:absolute; top:5px; right:5px; width:20px; height:20px; border-radius:50%;
+    background: rgba(10,20,16,0.75); color: var(--ink); border: 1px solid rgba(255,255,255,0.2);
+    display:flex; align-items:center; justify-content:center; font-size:0.75rem; cursor:pointer;
+    opacity:0; transition: opacity .12s ease;
+  }
+  .slot.filled:hover .remove-x{ opacity:1; }
+
+  /* ---------- CONTROLS ---------- */
+  .controls{
+    display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
+    margin-bottom: 16px;
+  }
+  .filter-chips{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .chip{
+    font-size:0.78rem; padding: 5px 11px; border-radius: 999px; cursor:pointer;
+    border: 1px solid var(--slot-border); color: var(--ink-dim); background: rgba(0,0,0,0.15);
+    transition: all .12s ease; font-family:'IBM Plex Sans', sans-serif;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .chip:hover{ color: var(--ink); }
+  .chip.include{ background: var(--brass); color: var(--felt-dark); border-color: var(--brass); font-weight:600; }
+  .chip.exclude{ background: var(--ember); color: var(--ink); border-color: var(--ember); text-decoration: line-through; }
+  .chip.bracket{ font-family:'IBM Plex Mono', monospace; }
+  .chip .pip{ width:9px; height:9px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,0.3); }
+
+  .sort-pills{ display:flex; gap:4px; background: rgba(0,0,0,0.2); border-radius: 8px; padding:3px; }
+  .sort-pills button{
+    background:none; border:none; color: var(--ink-dim); font-size:0.78rem; padding: 6px 11px;
+    border-radius:6px; cursor:pointer; font-family:'IBM Plex Sans', sans-serif;
+  }
+  .sort-pills button.active{ background: var(--felt-panel); color: var(--brass); font-weight:600; }
+
+  /* ---------- DECK GRID ---------- */
+  .deck-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+  .deck-card{
+    border-radius: var(--radius-card); overflow:hidden; cursor: pointer;
+    background: var(--felt-panel); border: 1px solid rgba(201,162,75,0.12);
+    transition: opacity .2s ease, transform .12s ease, filter .2s ease;
+    position:relative;
+  }
+  .deck-card:hover{ transform: translateY(-2px); border-color: rgba(201,162,75,0.4); }
+  .deck-card .art{
+    aspect-ratio: 5/7; background-size: cover; background-position: center;
+    background-color: rgba(0,0,0,0.25);
+    display:flex; align-items:flex-end; cursor: grab;
+  }
+  .deck-card .nameplate{
+    width:100%; background: linear-gradient(0deg, rgba(10,20,16,0.95), rgba(10,20,16,0.0));
+    padding: 20px 9px 8px;
+  }
+  .deck-card .deckname{ font-size:0.68rem; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.04em; }
+  .deck-card .cmdr{ font-family:'Fraunces', serif; font-weight:600; font-size:0.88rem; line-height:1.2; color: var(--ink); }
+  .deck-card .meta{ display:flex; justify-content:space-between; align-items:center; padding: 7px 9px 9px; font-size:0.68rem; color: var(--ink-faint); font-family:'IBM Plex Mono', monospace; }
+  .deck-card .meta .br{ color: var(--brass); }
+  .deck-card .pips{ display:flex; gap:3px; }
+  .deck-card .pips .pip{ width:9px; height:9px; border-radius:50%; border:1px solid rgba(0,0,0,0.4); }
+  .deck-card .add-btn{
+    position:absolute; top:6px; left:6px; background: rgba(201,162,75,0.92); color: var(--felt-dark);
+    border:none; border-radius:6px; font-size:0.72rem; font-weight:700; padding:3px 8px;
+    cursor:pointer; opacity:0; transition: opacity .12s ease;
+  }
+  .deck-card:hover .add-btn{ opacity:1; }
+  .deck-card .add-btn:hover{ background: #ddb862; }
+  .deck-card .hint-tag{
+    position:absolute; top:6px; right:6px; background: rgba(10,20,16,0.7); color: var(--ink-faint);
+    border-radius:6px; font-size:0.65rem; padding:3px 7px; opacity:0; transition: opacity .12s ease;
+    pointer-events:none;
+  }
+  .deck-card:hover .hint-tag{ opacity:1; }
+
+  .empty-state{ text-align:center; color: var(--ink-faint); padding: 50px 20px; font-size:0.9rem; }
+  .empty-state .btn{ margin-top: 14px; }
+
+  /* ---------- MODAL ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background: rgba(5,12,10,0.72); backdrop-filter: blur(2px);
+    display:flex; align-items:center; justify-content:center; z-index:100; padding: 20px;
+  }
+  .modal{
+    background: var(--felt-panel); border-radius:16px; border: 1px solid rgba(201,162,75,0.25);
+    max-width: 480px; width:100%; max-height: 88vh; overflow-y:auto; padding: 24px 26px 26px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal h2{ font-family:'Fraunces', serif; font-size:1.3rem; margin: 0 0 18px; color: var(--brass); }
+  .field{ margin-bottom: 14px; position:relative; }
+  .field label{ display:block; font-size:0.75rem; color: var(--ink-dim); margin-bottom: 5px; text-transform:uppercase; letter-spacing:0.05em; }
+  .field .hint{ font-size:0.7rem; color: var(--ink-faint); text-transform:none; letter-spacing:0; margin-left:6px; }
+  .field input[type=text], .field input[type=date], .field select{
+    width:100%; background: rgba(0,0,0,0.25); border: 1px solid var(--slot-border); border-radius:8px;
+    padding: 9px 10px; color: var(--ink); font-family:'IBM Plex Sans', sans-serif; font-size:0.9rem;
+  }
+  .field input:focus, .field select:focus{ border-color: var(--brass); outline:none; }
+  .suggest-list{
+    position:absolute; top:100%; left:0; right:0; background: var(--felt-dark);
+    border: 1px solid var(--brass); border-radius:8px; max-height:180px; overflow-y:auto; z-index:10;
+    margin-top:2px;
+  }
+  .suggest-list div{ padding: 8px 10px; font-size:0.85rem; cursor:pointer; }
+  .suggest-list div:hover{ background: rgba(201,162,75,0.2); }
+  .bracket-row{ display:flex; gap:6px; }
+  .bracket-row button{
+    flex:1; padding:8px 0; border-radius:7px; border:1px solid var(--slot-border); background: rgba(0,0,0,0.2);
+    color: var(--ink-dim); cursor:pointer; font-family:'IBM Plex Mono', monospace;
+  }
+  .bracket-row button.active{ background: var(--brass); color: var(--felt-dark); border-color: var(--brass); font-weight:600; }
+  .color-row{ display:flex; gap:6px; }
+  .color-row button{
+    flex:1; padding:9px 0; border-radius:7px; border:2px solid var(--slot-border); background: rgba(0,0,0,0.2);
+    cursor:pointer; font-weight:700; font-size:0.8rem; color: var(--felt-dark);
+  }
+  .color-row button[data-c=W]{ background: var(--mana-w); }
+  .color-row button[data-c=U]{ background: var(--mana-u); color:var(--ink); }
+  .color-row button[data-c=B]{ background: var(--mana-b); color:var(--ink); }
+  .color-row button[data-c=R]{ background: var(--mana-r); color:var(--ink); }
+  .color-row button[data-c=G]{ background: var(--mana-g); color:var(--ink); }
+  .color-row button[data-c=C]{ background: var(--mana-c); color:var(--felt-dark); }
+  .color-row button{ opacity:0.35; transition: opacity .12s ease, transform .12s ease; }
+  .color-row button.active{ opacity:1; transform: translateY(-2px); border-color: var(--ink); }
+  .tag-input-row{ display:flex; flex-wrap:wrap; gap:6px; padding: 8px; background: rgba(0,0,0,0.25); border:1px solid var(--slot-border); border-radius:8px; }
+  .tag-pill{ background: var(--brass-dim); color: var(--ink); font-size:0.75rem; padding:3px 8px; border-radius:999px; display:flex; align-items:center; gap:5px; }
+  .tag-pill button{ background:none; border:none; color:var(--ink); cursor:pointer; font-size:0.8rem; padding:0; line-height:1;}
+  .tag-input-row input{ border:none; background:none; color:var(--ink); font-size:0.85rem; flex:1; min-width:90px; outline:none; }
+  .modal-actions{ display:flex; justify-content:space-between; margin-top:20px; gap:10px; }
+  .commander-preview{ display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .commander-preview img{ width:56px; border-radius:5px; display:block; }
+  .commander-preview span{ font-size:0.8rem; color: var(--ink-dim); }
+  .print-thumbs{ display:flex; gap:6px; overflow-x:auto; padding: 4px 0 2px; }
+  .print-thumbs img{
+    width:52px; border-radius:5px; cursor:pointer; border:2px solid transparent; flex-shrink:0; opacity:0.7;
+    transition: all .12s ease;
+  }
+  .print-thumbs img:hover{ opacity:1; }
+  .print-thumbs img.selected{ border-color: var(--brass); opacity:1; }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+  @media (max-width: 560px){
+    .bag-slots{ grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); }
+    .controls{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div>
+      <h1>Commander <span>Bag</span></h1>
+      <div class="subtitle">Helping you decide which decks to bring.</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="exportBtn">Export</button>
+      <button class="btn" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+      <button class="btn primary" id="addDeckBtn">+ Add deck</button>
+    </div>
+  </header>
+
+  <section class="bag-panel">
+    <div class="bag-toprow">
+      <div class="bag-label">The Bag</div>
+      <div class="slot-count">
+        Slots
+        <div class="stepper">
+          <button id="slotMinus">–</button>
+          <span id="slotCountLabel">4</span>
+          <button id="slotPlus">+</button>
+        </div>
+      </div>
+      <div class="slider-row">
+        <span>Variety</span>
+        <input type="range" id="varietySlider" min="0" max="100" value="60">
+        <span>Recency</span>
+      </div>
+      <button class="btn small" id="markPlayedBtn">Mark bag played today</button>
+    </div>
+    <div class="bag-slots" id="bagSlots"></div>
+  </section>
+
+  <section class="controls">
+    <div class="filter-chips" id="filterChips"></div>
+    <div class="sort-pills" id="sortPills">
+      <button data-sort="recommended" class="active">Recommended</button>
+      <button data-sort="az">A–Z</button>
+      <button data-sort="bracket">Bracket</button>
+    </div>
+  </section>
+
+  <section class="deck-grid" id="deckGrid"></section>
+  <div class="empty-state" id="emptyState" style="display:none;">
+    No decks yet. Add your first one to get started.
+    <br><button class="btn primary" id="emptyAddBtn">+ Add deck</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const STORE_KEY = "commanderBagState_v2";
+  const BRACKETS = [1,2,3,4,5];
+  const COLORS = ['W','U','B','R','G','C'];
+  const COLOR_VARS = { W:'var(--mana-w)', U:'var(--mana-u)', B:'var(--mana-b)', R:'var(--mana-r)', G:'var(--mana-g)', C:'var(--mana-c)' };
+
+  function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+  function defaultState(){
+    return {
+      decks: [],
+      bagSlotCount: 4,
+      bag: [null,null,null,null],
+      filters: {},        // key -> 'include' | 'exclude'  (keys: bracket:N, color:X, or a raw tag string)
+      sortMode: 'recommended',
+      varietyWeight: 0.6
+    };
+  }
+
+  function migrateOld(){
+    // pull from the v1 key if present, so upgrading doesn't lose data
+    try{
+      const raw = localStorage.getItem('bagCheckState_v1');
+      if(!raw) return null;
+      const old = JSON.parse(raw);
+      old.decks.forEach(d => { if(d.colors === undefined) d.colors = []; });
+      return old;
+    }catch(e){ return null; }
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw){
+        const migrated = migrateOld();
+        return migrated || defaultState();
+      }
+      const parsed = JSON.parse(raw);
+      if(!parsed.decks) return defaultState();
+      parsed.decks.forEach(d => { if(d.colors === undefined) d.colors = []; });
+      while(parsed.bag.length < parsed.bagSlotCount) parsed.bag.push(null);
+      return parsed;
+    }catch(e){
+      console.error("Failed to load state, starting fresh.", e);
+      return defaultState();
+    }
+  }
+
+  let state = load();
+
+  function save(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    }catch(e){
+      console.error("Failed to save state", e);
+      alert("Couldn't save — your browser storage may be full. Export a backup if this keeps happening.");
+    }
+  }
+
+  function deckById(id){ return state.decks.find(d => d.id === id); }
+
+  function allCustomTags(){
+    const custom = new Set();
+    state.decks.forEach(d => (d.tags||[]).forEach(t => custom.add(t)));
+    return Array.from(custom).sort((a,b)=>a.localeCompare(b));
+  }
+
+  // ---------- SCORING ----------
+  function daysSince(dateStr){
+    if(!dateStr) return 9999;
+    const then = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    return Math.max(0, Math.round((now - then) / 86400000));
+  }
+
+  function scoreDeck(deck, bagDecks, varietyWeight){
+    const recency = Math.min(1, daysSince(deck.lastPlayed) / 365);
+    if(bagDecks.length === 0) return recency;
+
+    let themeOverlap = 0, bracketMatches = 0, bracketComparable = 0, colorOverlap = 0, colorComparable = 0;
+    bagDecks.forEach(bd => {
+      themeOverlap += (deck.tags||[]).filter(t => (bd.tags||[]).includes(t)).length;
+      if(deck.bracket != null && bd.bracket != null){
+        bracketComparable++;
+        if(bd.bracket === deck.bracket) bracketMatches++;
+      }
+      if((deck.colors||[]).length && (bd.colors||[]).length){
+        colorComparable++;
+        colorOverlap += (deck.colors||[]).filter(c => (bd.colors||[]).includes(c)).length;
+      }
+    });
+
+    const normTheme = Math.min(1, themeOverlap / Math.max(1, bagDecks.length * 3));
+    const normBracket = bracketComparable ? (bracketMatches / bracketComparable) : 0;
+    const normColor = colorComparable ? Math.min(1, colorOverlap / (colorComparable * 3)) : 0;
+
+    // theme weighted highest, bracket next, color lightest — per spec
+    const similarity = normTheme * 0.55 + normBracket * 0.28 + normColor * 0.17;
+    const variety = 1 - similarity;
+    return varietyWeight * variety + (1 - varietyWeight) * recency;
+  }
+
+  // ---------- FILTERS ----------
+  function deckMatchesFilters(deck){
+    for(const [key, mode] of Object.entries(state.filters)){
+      let has;
+      if(key.startsWith('bracket:')) has = ('bracket:' + deck.bracket) === key;
+      else if(key.startsWith('color:')) has = (deck.colors||[]).includes(key.slice(6));
+      else has = (deck.tags||[]).includes(key);
+      if(mode === 'include' && !has) return false;
+      if(mode === 'exclude' && has) return false;
+    }
+    return true;
+  }
+
+  // ---------- RENDER: BAG ----------
+  function renderBag(){
+    document.getElementById('slotCountLabel').textContent = state.bagSlotCount;
+    const bagEl = document.getElementById('bagSlots');
+    bagEl.innerHTML = '';
+    for(let i=0;i<state.bagSlotCount;i++){
+      const deckId = state.bag[i];
+      const slot = document.createElement('div');
+      slot.className = 'slot ' + (deckId ? 'filled' : 'empty');
+      slot.dataset.index = i;
+      if(deckId){
+        const deck = deckById(deckId);
+        if(deck){
+          slot.style.backgroundImage = deck.commanderImage ? `url(${deck.commanderImage})` : 'none';
+          slot.draggable = true;
+          slot.innerHTML = `
+            <div class="remove-x" title="Remove from bag">✕</div>
+            <div class="nameplate">
+              <div class="cmdr">${escapeHtml(deck.commander || deck.name)}</div>
+              <div class="subrow">
+                <span class="bracket">${deck.bracket ? 'BR ' + deck.bracket : 'BR —'}</span>
+              </div>
+            </div>`;
+          slot.querySelector('.remove-x').addEventListener('click', (e)=>{
+            e.stopPropagation();
+            state.bag[i] = null; save(); renderAll();
+          });
+          slot.addEventListener('dragstart', (e)=>{
+            e.dataTransfer.setData('text/plain', JSON.stringify({from:'slot', index:i}));
+            slot.classList.add('dragging');
+          });
+          slot.addEventListener('dragend', ()=> slot.classList.remove('dragging'));
+        }
+      } else {
+        slot.addEventListener('dragover', (e)=>{ e.preventDefault(); slot.classList.add('dragover'); });
+        slot.addEventListener('dragleave', ()=> slot.classList.remove('dragover'));
+      }
+      slot.addEventListener('dragover', (e)=> e.preventDefault());
+      slot.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        slot.classList.remove('dragover');
+        let data;
+        try{ data = JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
+        if(data.from === 'grid'){
+          state.bag[i] = data.deckId;
+        } else if(data.from === 'slot'){
+          const tmp = state.bag[i];
+          state.bag[i] = state.bag[data.index];
+          state.bag[data.index] = tmp;
+        }
+        save(); renderAll();
+      });
+      bagEl.appendChild(slot);
+    }
+  }
+
+  function pipsHtml(colors){
+    if(!colors || colors.length === 0) return '';
+    return colors.map(c => `<span class="pip" style="background:${COLOR_VARS[c]||'#888'}"></span>`).join('');
+  }
+
+  // ---------- RENDER: FILTER CHIPS ----------
+  function renderChips(){
+    const wrap = document.getElementById('filterChips');
+    wrap.innerHTML = '';
+    const makeChip = (key, label, extraClass, pipColor) => {
+      const chip = document.createElement('div');
+      const mode = state.filters[key];
+      chip.className = 'chip' + (extraClass ? ' '+extraClass : '') + (mode ? ' '+mode : '');
+      chip.innerHTML = (pipColor ? `<span class="pip" style="background:${pipColor}"></span>` : '') + escapeHtml(label);
+      chip.title = mode ? (mode === 'include' ? 'Including — click to exclude' : 'Excluding — click to clear') : 'Click to include';
+      chip.addEventListener('click', ()=>{
+        const cur = state.filters[key];
+        if(!cur) state.filters[key] = 'include';
+        else if(cur === 'include') state.filters[key] = 'exclude';
+        else delete state.filters[key];
+        save(); renderAll();
+      });
+      wrap.appendChild(chip);
+    };
+    BRACKETS.forEach(b => makeChip('bracket:'+b, 'BR ' + b, 'bracket'));
+    allCustomTags().forEach(t => makeChip(t, t, null));
+  }
+
+  // ---------- RENDER: DECK GRID ----------
+  function renderGrid(){
+    const grid = document.getElementById('deckGrid');
+    const emptyState = document.getElementById('emptyState');
+    grid.innerHTML = '';
+
+    if(state.decks.length === 0){
+      emptyState.style.display = 'block';
+      grid.style.display = 'none';
+      return;
+    }
+    emptyState.style.display = 'none';
+    grid.style.display = 'grid';
+
+    const bagIds = new Set(state.bag.filter(Boolean));
+    const bagDecks = state.bag.filter(Boolean).map(deckById).filter(Boolean);
+    const vw = state.varietyWeight;
+
+    let candidates = state.decks
+      .filter(d => !bagIds.has(d.id))
+      .filter(deckMatchesFilters)
+      .map(d => ({ deck: d, score: scoreDeck(d, bagDecks, vw) }));
+
+    if(state.sortMode === 'recommended'){
+      candidates.sort((a,b)=> b.score - a.score);
+    } else if(state.sortMode === 'az'){
+      candidates.sort((a,b)=> (a.deck.name||'').localeCompare(b.deck.name||''));
+    } else if(state.sortMode === 'bracket'){
+      candidates.sort((a,b)=> (a.deck.bracket||99) - (b.deck.bracket||99));
+    }
+
+    const maxScore = Math.max(0.001, ...candidates.map(c=>c.score));
+
+    candidates.forEach(({deck, score}) => {
+      const card = document.createElement('div');
+      card.className = 'deck-card';
+      const opacity = bagDecks.length ? (0.4 + 0.6 * (score / maxScore)) : 1;
+      card.style.opacity = opacity.toFixed(2);
+      card.style.filter = opacity < 0.6 ? 'saturate(0.45)' : 'none';
+      card.innerHTML = `
+        <button class="add-btn" title="Add to bag">+ Bag</button>
+        <div class="hint-tag">click to edit</div>
+        <div class="art" draggable="true" style="background-image:${deck.commanderImage ? `url(${deck.commanderImage})` : 'none'}">
+          <div class="nameplate">
+            <div class="deckname">${escapeHtml(deck.name)}</div>
+            <div class="cmdr">${escapeHtml(deck.commander)}</div>
+          </div>
+        </div>
+        <div class="meta">
+          <span class="br">${deck.bracket ? 'BR ' + deck.bracket : 'unrated'}</span>
+          <span class="pips">${pipsHtml(deck.colors)}</span>
+          <span>${deck.lastPlayed ? deck.lastPlayed : 'never'}</span>
+        </div>`;
+      card.querySelector('.art').addEventListener('dragstart', (e)=>{
+        e.dataTransfer.setData('text/plain', JSON.stringify({from:'grid', deckId: deck.id}));
+      });
+      card.querySelector('.add-btn').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const emptyIdx = state.bag.findIndex(x => x === null);
+        if(emptyIdx === -1){ alert('Bag is full — remove a deck first, or add more slots.'); return; }
+        state.bag[emptyIdx] = deck.id;
+        save(); renderAll();
+      });
+      card.addEventListener('click', ()=> openDeckModal(deck.id));
+      grid.appendChild(card);
+    });
+  }
+
+  function renderAll(){
+    renderBag();
+    renderChips();
+    renderGrid();
+    document.getElementById('varietySlider').value = Math.round(state.varietyWeight * 100);
+    document.querySelectorAll('#sortPills button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.sort === state.sortMode);
+    });
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+
+  // ---------- BAG SIZE CONTROLS ----------
+  document.getElementById('slotPlus').addEventListener('click', ()=>{
+    state.bagSlotCount = Math.min(16, state.bagSlotCount + 1);
+    state.bag.push(null);
+    save(); renderAll();
+  });
+  document.getElementById('slotMinus').addEventListener('click', ()=>{
+    if(state.bagSlotCount <= 1) return;
+    state.bag.pop();
+    state.bagSlotCount = Math.max(1, state.bagSlotCount - 1);
+    save(); renderAll();
+  });
+
+  document.getElementById('varietySlider').addEventListener('input', (e)=>{
+    state.varietyWeight = Number(e.target.value) / 100;
+    save(); renderGrid();
+  });
+
+  document.getElementById('markPlayedBtn').addEventListener('click', ()=>{
+    const ids = state.bag.filter(Boolean);
+    if(ids.length === 0){ alert('Bag is empty — add some decks first.'); return; }
+    const today = todayStr();
+    ids.forEach(id => { const d = deckById(id); if(d) d.lastPlayed = today; });
+    save(); renderAll();
+  });
+
+  document.getElementById('sortPills').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-sort]');
+    if(!btn) return;
+    state.sortMode = btn.dataset.sort;
+    save(); renderAll();
+  });
+
+  // ---------- EXPORT / IMPORT ----------
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'commander-bag-backup-' + todayStr() + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(!parsed.decks) throw new Error('Missing decks array');
+        if(confirm('Import will replace your current decks and bag. Continue?')){
+          state = parsed;
+          if(!state.filters) state.filters = {};
+          state.decks.forEach(d => { if(d.colors === undefined) d.colors = []; });
+          if(!state.bag) state.bag = new Array(state.bagSlotCount||4).fill(null);
+          save(); renderAll();
+        }
+      }catch(err){
+        alert('That file doesn\'t look like a valid Commander Bag export.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- DECK MODAL ----------
+  let editingId = null;
+  let modalTags = [];
+  let modalColors = [];
+  let modalBracket = null;
+  let modalCommanderImage = null;
+  let modalPrints = [];
+
+  function openDeckModal(deckId){
+    editingId = deckId || null;
+    const deck = deckId ? deckById(deckId) : null;
+    modalTags = deck ? [...(deck.tags||[])] : [];
+    modalColors = deck ? [...(deck.colors||[])] : [];
+    modalBracket = deck ? deck.bracket : null;
+    modalCommanderImage = deck ? deck.commanderImage : null;
+    modalPrints = [];
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="modal">
+        <h2>${deck ? 'Edit deck' : 'Add deck'}</h2>
+        <div class="field">
+          <label>Deck name</label>
+          <input type="text" id="f_name" value="${escapeHtml(deck ? deck.name : '')}" placeholder="e.g. Counters Go Brrr">
+        </div>
+        <div class="field">
+          <label>Commander</label>
+          <input type="text" id="f_commander" autocomplete="off" value="${escapeHtml(deck ? deck.commander : '')}" placeholder="Start typing a card name…">
+          <div class="suggest-list" id="f_commander_list" style="display:none;"></div>
+        </div>
+        <div class="field" id="f_commander_preview_wrap" style="${modalCommanderImage ? '' : 'display:none;'}">
+          <div class="commander-preview">
+            <img id="f_commander_img" src="${modalCommanderImage||''}">
+            <span>Pick a printing below if you'd like a different art</span>
+          </div>
+          <div class="print-thumbs" id="f_print_thumbs"></div>
+        </div>
+        <div class="field">
+          <label>Bracket <span class="hint">optional — leave blank if undecided</span></label>
+          <div class="bracket-row" id="f_bracket">
+            ${BRACKETS.map(b => `<button type="button" data-b="${b}" class="${deck && deck.bracket===b ? 'active':''}">${b}</button>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Tags</label>
+          <div class="tag-input-row" id="f_tag_row">
+            <input type="text" id="f_tag_input" placeholder="Add a tag, press Enter" autocomplete="off">
+          </div>
+          <div class="suggest-list" id="f_tag_suggest" style="display:none;"></div>
+        </div>
+        <div class="field">
+          <label>Moxfield link (optional)</label>
+          <input type="text" id="f_moxfield" value="${escapeHtml(deck ? (deck.moxfieldUrl||'') : '')}" placeholder="https://moxfield.com/decks/...">
+        </div>
+        <div class="field">
+          <label>Last played</label>
+          <input type="date" id="f_lastplayed" value="${deck && deck.lastPlayed ? deck.lastPlayed : ''}">
+        </div>
+        <div class="modal-actions">
+          <div>${deck ? '<button class="btn ghost" id="f_delete">Delete deck</button>' : ''}</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" id="f_cancel">Cancel</button>
+            <button class="btn primary" id="f_save">Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    renderTagPills();
+    if(deck && deck.commander) fetchScryfallPrints(deck.commander, false);
+
+    // bracket select (click active again to clear — it's optional)
+    backdrop.querySelector('#f_bracket').addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-b]');
+      if(!btn) return;
+      const b = Number(btn.dataset.b);
+      if(modalBracket === b){
+        modalBracket = null;
+      } else {
+        modalBracket = b;
+      }
+      backdrop.querySelectorAll('#f_bracket button').forEach(x=>x.classList.toggle('active', Number(x.dataset.b) === modalBracket));
+    });
+
+    // commander autocomplete
+    const cInput = backdrop.querySelector('#f_commander');
+    const cList = backdrop.querySelector('#f_commander_list');
+    let debounceTimer;
+    cInput.addEventListener('input', ()=>{
+      clearTimeout(debounceTimer);
+      const q = cInput.value.trim();
+      if(q.length < 2){ cList.style.display='none'; return; }
+      debounceTimer = setTimeout(()=> fetchScryfallAutocomplete(q, cList), 250);
+    });
+    cInput.addEventListener('blur', ()=> setTimeout(()=> cList.style.display='none', 150));
+
+    // tag input with suggestions (not forced autocomplete — free text still works)
+    const tInput = backdrop.querySelector('#f_tag_input');
+    const tSuggest = backdrop.querySelector('#f_tag_suggest');
+    tInput.addEventListener('input', ()=>{
+      const q = tInput.value.trim().toLowerCase();
+      if(!q){ tSuggest.style.display='none'; return; }
+      const matches = allCustomTags().filter(t => t.toLowerCase().includes(q) && !modalTags.includes(t)).slice(0,6);
+      if(matches.length === 0){ tSuggest.style.display='none'; return; }
+      tSuggest.innerHTML = '';
+      matches.forEach(m => {
+        const item = document.createElement('div');
+        item.textContent = m;
+        item.addEventListener('mousedown', (e)=>{
+          e.preventDefault();
+          if(!modalTags.includes(m)) modalTags.push(m);
+          tInput.value = '';
+          tSuggest.style.display = 'none';
+          renderTagPills();
+        });
+        tSuggest.appendChild(item);
+      });
+      tSuggest.style.display = 'block';
+    });
+    tInput.addEventListener('blur', ()=> setTimeout(()=> tSuggest.style.display='none', 150));
+    tInput.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        const val = tInput.value.trim();
+        if(val && !modalTags.includes(val)){
+          modalTags.push(val);
+          renderTagPills();
+        }
+        tInput.value = '';
+        tSuggest.style.display = 'none';
+      }
+    });
+
+    backdrop.querySelector('#f_cancel').addEventListener('click', ()=> backdrop.remove());
+    backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) backdrop.remove(); });
+
+    if(deck){
+      backdrop.querySelector('#f_delete').addEventListener('click', ()=>{
+        if(confirm('Delete "' + deck.name + '"? This can\'t be undone.')){
+          state.decks = state.decks.filter(d => d.id !== deck.id);
+          state.bag = state.bag.map(id => id === deck.id ? null : id);
+          save(); renderAll();
+          backdrop.remove();
+        }
+      });
+    }
+
+    backdrop.querySelector('#f_save').addEventListener('click', ()=>{
+      const name = backdrop.querySelector('#f_name').value.trim();
+      const commander = backdrop.querySelector('#f_commander').value.trim();
+      const moxfieldUrl = backdrop.querySelector('#f_moxfield').value.trim();
+      const lastPlayed = backdrop.querySelector('#f_lastplayed').value || null;
+
+      if(!name || !commander){
+        alert('Deck name and commander are required. Bracket can stay blank.');
+        return;
+      }
+
+      if(editingId){
+        const d = deckById(editingId);
+        Object.assign(d, { name, commander, commanderImage: modalCommanderImage, bracket: modalBracket, colors: modalColors, tags: modalTags, moxfieldUrl, lastPlayed });
+      } else {
+        state.decks.push({
+          id: uid(), name, commander, commanderImage: modalCommanderImage,
+          bracket: modalBracket, colors: modalColors, tags: modalTags, moxfieldUrl, lastPlayed
+        });
+      }
+      save(); renderAll();
+      backdrop.remove();
+    });
+
+    function renderTagPills(){
+      const row = backdrop.querySelector('#f_tag_row');
+      row.querySelectorAll('.tag-pill').forEach(p=>p.remove());
+      modalTags.forEach(t => {
+        const pill = document.createElement('span');
+        pill.className = 'tag-pill';
+        pill.innerHTML = `${escapeHtml(t)} <button type="button">✕</button>`;
+        pill.querySelector('button').addEventListener('click', ()=>{
+          modalTags = modalTags.filter(x => x !== t);
+          renderTagPills();
+        });
+        row.insertBefore(pill, backdrop.querySelector('#f_tag_input'));
+      });
+    }
+
+    async function fetchScryfallPrints(name, focusFirst){
+      try{
+        const res = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + name + '"') + '&unique=prints&order=released');
+        if(!res.ok) return;
+        const data = await res.json();
+        modalPrints = (data.data || []).filter(c => c.image_uris || (c.card_faces && c.card_faces[0].image_uris));
+        renderPrintThumbs();
+      }catch(e){ console.error('Scryfall prints fetch failed', e); }
+    }
+
+    function renderPrintThumbs(){
+      const thumbWrap = backdrop.querySelector('#f_print_thumbs');
+      if(!thumbWrap) return;
+      thumbWrap.innerHTML = '';
+      modalPrints.forEach(card => {
+        const uris = card.image_uris || card.card_faces[0].image_uris;
+        const img = document.createElement('img');
+        img.src = uris.small;
+        img.title = card.set_name;
+        if(uris.art_crop === modalCommanderImage) img.classList.add('selected');
+        img.addEventListener('click', ()=>{
+          modalCommanderImage = uris.art_crop;
+          document.getElementById('f_commander_img').src = modalCommanderImage;
+          document.getElementById('f_commander_preview_wrap').style.display = 'block';
+          thumbWrap.querySelectorAll('img').forEach(i=>i.classList.remove('selected'));
+          img.classList.add('selected');
+        });
+        thumbWrap.appendChild(img);
+      });
+    }
+
+    // expose for autocomplete handler below
+    backdrop._fetchPrints = fetchScryfallPrints;
+  }
+
+  async function fetchScryfallAutocomplete(q, listEl){
+    try{
+      const res = await fetch('https://api.scryfall.com/cards/autocomplete?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      const names = data.data || [];
+      if(names.length === 0){ listEl.style.display='none'; return; }
+      listEl.innerHTML = '';
+      names.slice(0,8).forEach(n => {
+        const item = document.createElement('div');
+        item.textContent = n;
+        item.addEventListener('mousedown', async (e)=>{
+          e.preventDefault();
+          document.getElementById('f_commander').value = n;
+          listEl.style.display = 'none';
+          await fetchScryfallCardDefault(n);
+        });
+        listEl.appendChild(item);
+      });
+      listEl.style.display = 'block';
+    }catch(e){
+      console.error('Scryfall autocomplete failed', e);
+    }
+  }
+
+  async function fetchScryfallCardDefault(name){
+    try{
+      const res = await fetch('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(name));
+      if(!res.ok) return;
+      const card = await res.json();
+      const img = card.image_uris ? card.image_uris.art_crop
+        : (card.card_faces && card.card_faces[0].image_uris ? card.card_faces[0].image_uris.art_crop : null);
+      modalCommanderImage = img;
+      const wrap = document.getElementById('f_commander_preview_wrap');
+      const imgEl = document.getElementById('f_commander_img');
+      if(wrap && imgEl && img){
+        imgEl.src = img;
+        wrap.style.display = 'block';
+      }
+      document.getElementById('f_commander').value = card.name;
+      modalColors = (card.color_identity && card.color_identity.length) ? [...card.color_identity] : ['C'];
+      const backdrop = document.querySelector('.modal-backdrop');
+      if(backdrop && backdrop._fetchPrints) backdrop._fetchPrints(card.name, true);
+    }catch(e){
+      console.error('Scryfall card fetch failed', e);
+    }
+  }
+
+  document.getElementById('addDeckBtn').addEventListener('click', ()=> openDeckModal(null));
+  document.getElementById('emptyAddBtn').addEventListener('click', ()=> openDeckModal(null));
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
