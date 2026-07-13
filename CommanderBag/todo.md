@@ -1,0 +1,6 @@
+- Double check if the commander search is only including valid commanders
+- Support for Partner Commanders (only show the UI if the first commander picked has partner)
+- First time you drag a deck, the ghost image doesn't work. Second time you drag it, it works fine.
+- Pressing the down arrow should allow you to select auto suggestions for commander and deck tags
+- Once you've added a lot of tags, they spill over onto a second line. Want to revisit this UI and clean it up some I think.
+- Reconsidering treating brackets the same as tags in the UI. Maybe they should be more separated (and with a different UI for selecting/filtering based on them)
