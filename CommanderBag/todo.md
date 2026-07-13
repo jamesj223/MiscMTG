@@ -1,8 +1,12 @@
 # todo.md
 
-## To Do
+## In Progress
 
 - 002 - Support for Partner Commanders (only show the UI if the first commander picked has partner)
+    - Second commander isn't being limited to cards with partner, need to fix that
+
+## To Do
+
 - 003 - First time you drag a deck, the ghost image doesn't work. Second time you drag it, it works fine.
 - 004 - Pressing the down arrow should allow you to select auto suggestions for commander and deck tags
 - 005 - Once you've added a lot of tags, they spill over onto a second line. Want to revisit this UI and clean it up some I think.

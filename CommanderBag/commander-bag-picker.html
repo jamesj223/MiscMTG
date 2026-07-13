@@ -116,6 +116,7 @@
     position:absolute; left:0; right:0; bottom:0;
     background: linear-gradient(0deg, rgba(10,20,16,0.95), rgba(10,20,16,0.0));
     padding: 18px 8px 7px;
+    z-index: 2;
   }
   .slot .nameplate .cmdr{ font-family:'Fraunces', serif; font-weight:600; font-size:0.82rem; line-height:1.15; color:var(--ink); }
   .slot .nameplate .subrow{ display:flex; justify-content:space-between; align-items:center; margin-top:2px; }
@@ -125,6 +126,7 @@
     background: rgba(10,20,16,0.75); color: var(--ink); border: 1px solid rgba(255,255,255,0.2);
     display:flex; align-items:center; justify-content:center; font-size:0.75rem; cursor:pointer;
     opacity:0; transition: opacity .12s ease;
+    z-index: 3;
   }
   .slot.filled:hover .remove-x{ opacity:1; }
 
@@ -169,10 +171,12 @@
     aspect-ratio: 5/7; background-size: cover; background-position: center;
     background-color: rgba(0,0,0,0.25);
     display:flex; align-items:flex-end; cursor: grab;
+    position: relative; overflow: hidden;
   }
   .deck-card .nameplate{
     width:100%; background: linear-gradient(0deg, rgba(10,20,16,0.95), rgba(10,20,16,0.0));
     padding: 20px 9px 8px;
+    z-index: 2; position: relative;
   }
   .deck-card .deckname{ font-size:0.68rem; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.04em; }
   .deck-card .cmdr{ font-family:'Fraunces', serif; font-weight:600; font-size:0.88rem; line-height:1.2; color: var(--ink); }
@@ -258,6 +262,26 @@
   .print-thumbs img:hover{ opacity:1; }
   .print-thumbs img.selected{ border-color: var(--brass); opacity:1; }
 
+  /* Partner transition styles */
+  #f_partner_wrap{
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    margin-top: 0;
+    border-left: 2px solid var(--brass);
+    padding-left: 0;
+  }
+  #f_partner_wrap.visible{
+    opacity: 1;
+    max-height: 600px;
+    margin-bottom: 14px;
+    margin-top: 10px;
+    padding-left: 14px;
+    overflow: visible;
+  }
+
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
   @media (max-width: 560px){
     .bag-slots{ grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); }
@@ -330,6 +354,20 @@
 
   function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
   function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+  function getArtBgHtml(deck){
+    if(deck.commanderImage && deck.commanderImage2){
+      return `
+        <div class="art-bg-split" style="position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; border-radius:inherit;">
+          <div class="art-bg-left" style="background-image:url(${deck.commanderImage}); position:absolute; inset:0; background-size:cover; background-position:center; clip-path:polygon(0 0, 60% 0, 40% 100%, 0 100%);"></div>
+          <div class="art-bg-right" style="background-image:url(${deck.commanderImage2}); position:absolute; inset:0; background-size:cover; background-position:center; clip-path:polygon(60% 0, 100% 0, 100% 100%, 40% 100%);"></div>
+        </div>`;
+    } else if(deck.commanderImage){
+      return `
+        <div class="art-bg-single" style="position:absolute; inset:0; z-index:0; pointer-events:none; background-image:url(${deck.commanderImage}); background-size:cover; background-position:center; border-radius:inherit;"></div>`;
+    }
+    return '';
+  }
 
   function defaultState(){
     return {
@@ -451,12 +489,13 @@
       if(deckId){
         const deck = deckById(deckId);
         if(deck){
-          slot.style.backgroundImage = deck.commanderImage ? `url(${deck.commanderImage})` : 'none';
+          slot.style.backgroundImage = 'none';
           slot.draggable = true;
           slot.innerHTML = `
+            ${getArtBgHtml(deck)}
             <div class="remove-x" title="Remove from bag">✕</div>
             <div class="nameplate">
-              <div class="cmdr">${escapeHtml(deck.commander || deck.name)}</div>
+              <div class="cmdr">${escapeHtml(deck.commander2 ? `${deck.commander} & ${deck.commander2}` : (deck.commander || deck.name))}</div>
               <div class="subrow">
                 <span class="bracket">${deck.bracket ? 'BR ' + deck.bracket : 'BR —'}</span>
               </div>
@@ -564,10 +603,11 @@
       card.innerHTML = `
         <button class="add-btn" title="Add to bag">+ Bag</button>
         <div class="hint-tag">click to edit</div>
-        <div class="art" draggable="true" style="background-image:${deck.commanderImage ? `url(${deck.commanderImage})` : 'none'}">
+        <div class="art" draggable="true" style="position:relative; overflow:hidden;">
+          ${getArtBgHtml(deck)}
           <div class="nameplate">
             <div class="deckname">${escapeHtml(deck.name)}</div>
-            <div class="cmdr">${escapeHtml(deck.commander)}</div>
+            <div class="cmdr">${escapeHtml(deck.commander2 ? `${deck.commander} & ${deck.commander2}` : deck.commander)}</div>
           </div>
         </div>
         <div class="meta">
@@ -677,18 +717,24 @@
   let editingId = null;
   let modalTags = [];
   let modalColors = [];
+  let modalColors2 = [];
   let modalBracket = null;
   let modalCommanderImage = null;
+  let modalCommanderImage2 = null;
   let modalPrints = [];
+  let modalPrints2 = [];
 
   function openDeckModal(deckId){
     editingId = deckId || null;
     const deck = deckId ? deckById(deckId) : null;
     modalTags = deck ? [...(deck.tags||[])] : [];
-    modalColors = deck ? [...(deck.colors||[])] : [];
+    modalColors = deck ? [...(deck.colors1 || deck.colors || [])] : [];
+    modalColors2 = deck ? [...(deck.colors2||[])] : [];
     modalBracket = deck ? deck.bracket : null;
     modalCommanderImage = deck ? deck.commanderImage : null;
+    modalCommanderImage2 = deck ? deck.commanderImage2 : null;
     modalPrints = [];
+    modalPrints2 = [];
 
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
@@ -710,6 +756,20 @@
             <span>Pick a printing below if you'd like a different art</span>
           </div>
           <div class="print-thumbs" id="f_print_thumbs"></div>
+        </div>
+        <div id="f_partner_wrap" class="${deck && deck.commander2 ? 'visible' : ''}">
+          <div class="field">
+            <label>Partner Commander</label>
+            <input type="text" id="f_commander2" autocomplete="off" value="${escapeHtml(deck ? deck.commander2 : '')}" placeholder="Start typing second card name…">
+            <div class="suggest-list" id="f_commander2_list" style="display:none;"></div>
+          </div>
+          <div class="field" id="f_commander2_preview_wrap" style="${modalCommanderImage2 ? '' : 'display:none;'}">
+            <div class="commander-preview">
+              <img id="f_commander2_img" src="${modalCommanderImage2||''}">
+              <span>Pick a printing below if you'd like a different art</span>
+            </div>
+            <div class="print-thumbs" id="f_print2_thumbs"></div>
+          </div>
         </div>
         <div class="field">
           <label>Bracket <span class="hint">optional — leave blank if undecided</span></label>
@@ -744,6 +804,25 @@
 
     renderTagPills();
     if(deck && deck.commander) fetchScryfallPrints(deck.commander, false);
+    if(deck && deck.commander2) fetchScryfallPrints2(deck.commander2, false);
+
+    function togglePartnerUI(show){
+      const wrap = document.getElementById('f_partner_wrap');
+      if(!wrap) return;
+      if(show){
+        wrap.classList.add('visible');
+      } else {
+        wrap.classList.remove('visible');
+        document.getElementById('f_commander2').value = '';
+        document.getElementById('f_commander2_preview_wrap').style.display = 'none';
+        document.getElementById('f_commander2_img').src = '';
+        document.getElementById('f_print2_thumbs').innerHTML = '';
+        modalCommanderImage2 = null;
+        modalColors2 = [];
+        modalPrints2 = [];
+      }
+    }
+    backdrop._togglePartnerUI = togglePartnerUI;
 
     // bracket select (click active again to clear — it's optional)
     backdrop.querySelector('#f_bracket').addEventListener('click', (e)=>{
@@ -769,6 +848,18 @@
       debounceTimer = setTimeout(()=> fetchScryfallAutocomplete(q, cList), 250);
     });
     cInput.addEventListener('blur', ()=> setTimeout(()=> cList.style.display='none', 150));
+
+    // commander 2 autocomplete
+    const cInput2 = backdrop.querySelector('#f_commander2');
+    const cList2 = backdrop.querySelector('#f_commander2_list');
+    let debounceTimer2;
+    cInput2.addEventListener('input', ()=>{
+      clearTimeout(debounceTimer2);
+      const q = cInput2.value.trim();
+      if(q.length < 2){ cList2.style.display='none'; return; }
+      debounceTimer2 = setTimeout(()=> fetchScryfallAutocomplete(q, cList2, true), 250);
+    });
+    cInput2.addEventListener('blur', ()=> setTimeout(()=> cList2.style.display='none', 150));
 
     // tag input with suggestions (not forced autocomplete — free text still works)
     const tInput = backdrop.querySelector('#f_tag_input');
@@ -824,6 +915,7 @@
     backdrop.querySelector('#f_save').addEventListener('click', ()=>{
       const name = backdrop.querySelector('#f_name').value.trim();
       const commander = backdrop.querySelector('#f_commander').value.trim();
+      const commander2 = backdrop.querySelector('#f_commander2') ? backdrop.querySelector('#f_commander2').value.trim() : '';
       const moxfieldUrl = backdrop.querySelector('#f_moxfield').value.trim();
       const lastPlayed = backdrop.querySelector('#f_lastplayed').value || null;
 
@@ -832,13 +924,51 @@
         return;
       }
 
+      const isPartnerVisible = document.getElementById('f_partner_wrap') && document.getElementById('f_partner_wrap').classList.contains('visible');
+      const actualCommander2 = isPartnerVisible ? commander2 : '';
+      const actualCommanderImage2 = isPartnerVisible ? modalCommanderImage2 : null;
+      const actualColors2 = isPartnerVisible ? modalColors2 : [];
+
+      function combineAndSortColors(c1, c2){
+        const s = new Set([...c1, ...c2]);
+        if(s.has('C') && s.size > 1) s.delete('C');
+        const order = { 'W':1, 'U':2, 'B':3, 'R':4, 'G':5, 'C':6 };
+        return Array.from(s).sort((a,b)=> order[a] - order[b]);
+      }
+
+      const combinedColors = combineAndSortColors(modalColors, actualColors2);
+
       if(editingId){
         const d = deckById(editingId);
-        Object.assign(d, { name, commander, commanderImage: modalCommanderImage, bracket: modalBracket, colors: modalColors, tags: modalTags, moxfieldUrl, lastPlayed });
+        Object.assign(d, {
+          name,
+          commander,
+          commanderImage: modalCommanderImage,
+          commander2: actualCommander2,
+          commanderImage2: actualCommanderImage2,
+          bracket: modalBracket,
+          colors: combinedColors,
+          colors1: modalColors,
+          colors2: actualColors2,
+          tags: modalTags,
+          moxfieldUrl,
+          lastPlayed
+        });
       } else {
         state.decks.push({
-          id: uid(), name, commander, commanderImage: modalCommanderImage,
-          bracket: modalBracket, colors: modalColors, tags: modalTags, moxfieldUrl, lastPlayed
+          id: uid(),
+          name,
+          commander,
+          commanderImage: modalCommanderImage,
+          commander2: actualCommander2,
+          commanderImage2: actualCommanderImage2,
+          bracket: modalBracket,
+          colors: combinedColors,
+          colors1: modalColors,
+          colors2: actualColors2,
+          tags: modalTags,
+          moxfieldUrl,
+          lastPlayed
         });
       }
       save(); renderAll();
@@ -867,6 +997,10 @@
         const data = await res.json();
         modalPrints = (data.data || []).filter(c => c.image_uris || (c.card_faces && c.card_faces[0].image_uris));
         renderPrintThumbs();
+
+        // Also check if card has partner keyword
+        const hasPartner = data.data && data.data[0] && hasPartnerAbility(data.data[0]);
+        togglePartnerUI(hasPartner);
       }catch(e){ console.error('Scryfall prints fetch failed', e); }
     }
 
@@ -891,11 +1025,53 @@
       });
     }
 
+    async function fetchScryfallPrints2(name, focusFirst){
+      try{
+        const res = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent('!"' + name + '"') + '&unique=prints&order=released');
+        if(!res.ok) return;
+        const data = await res.json();
+        modalPrints2 = (data.data || []).filter(c => c.image_uris || (c.card_faces && c.card_faces[0].image_uris));
+        renderPrintThumbs2();
+      }catch(e){ console.error('Scryfall prints fetch failed for commander 2', e); }
+    }
+
+    function renderPrintThumbs2(){
+      const thumbWrap = backdrop.querySelector('#f_print2_thumbs');
+      if(!thumbWrap) return;
+      thumbWrap.innerHTML = '';
+      modalPrints2.forEach(card => {
+        const uris = card.image_uris || card.card_faces[0].image_uris;
+        const img = document.createElement('img');
+        img.src = uris.small;
+        img.title = card.set_name;
+        if(uris.art_crop === modalCommanderImage2) img.classList.add('selected');
+        img.addEventListener('click', ()=>{
+          modalCommanderImage2 = uris.art_crop;
+          document.getElementById('f_commander2_img').src = modalCommanderImage2;
+          document.getElementById('f_commander2_preview_wrap').style.display = 'block';
+          thumbWrap.querySelectorAll('img').forEach(i=>i.classList.remove('selected'));
+          img.classList.add('selected');
+        });
+        thumbWrap.appendChild(img);
+      });
+    }
+
     // expose for autocomplete handler below
     backdrop._fetchPrints = fetchScryfallPrints;
+    backdrop._fetchPrints2 = fetchScryfallPrints2;
   }
 
-  async function fetchScryfallAutocomplete(q, listEl){
+  function hasPartnerAbility(card){
+    if(!card || !card.keywords) return false;
+    const kw = card.keywords.map(k=>k.toLowerCase());
+    return kw.includes('partner') ||
+           kw.includes('partner with') ||
+           kw.includes('friends forever') ||
+           kw.includes('doctor\'s companion') ||
+           kw.includes('choose a background');
+  }
+
+  async function fetchScryfallAutocomplete(q, listEl, isSecond){
     try{
       const clean = q.trim().replace(/["\\]/g, '');
       const words = clean.split(/\s+/).filter(Boolean);
@@ -913,9 +1089,10 @@
         item.textContent = n;
         item.addEventListener('mousedown', async (e)=>{
           e.preventDefault();
-          document.getElementById('f_commander').value = n;
+          const targetId = isSecond ? 'f_commander2' : 'f_commander';
+          document.getElementById(targetId).value = n;
           listEl.style.display = 'none';
-          await fetchScryfallCardDefault(n);
+          await fetchScryfallCardDefault(n, isSecond);
         });
         listEl.appendChild(item);
       });
@@ -925,24 +1102,37 @@
     }
   }
 
-  async function fetchScryfallCardDefault(name){
+  async function fetchScryfallCardDefault(name, isSecond){
     try{
       const res = await fetch('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(name));
       if(!res.ok) return;
       const card = await res.json();
       const img = card.image_uris ? card.image_uris.art_crop
         : (card.card_faces && card.card_faces[0].image_uris ? card.card_faces[0].image_uris.art_crop : null);
-      modalCommanderImage = img;
-      const wrap = document.getElementById('f_commander_preview_wrap');
-      const imgEl = document.getElementById('f_commander_img');
+      
+      const targetPrefix = isSecond ? 'f_commander2' : 'f_commander';
+      const wrap = document.getElementById(`${targetPrefix}_preview_wrap`);
+      const imgEl = document.getElementById(`${targetPrefix}_img`);
       if(wrap && imgEl && img){
         imgEl.src = img;
         wrap.style.display = 'block';
       }
-      document.getElementById('f_commander').value = card.name;
-      modalColors = (card.color_identity && card.color_identity.length) ? [...card.color_identity] : ['C'];
-      const backdrop = document.querySelector('.modal-backdrop');
-      if(backdrop && backdrop._fetchPrints) backdrop._fetchPrints(card.name, true);
+      document.getElementById(targetPrefix).value = card.name;
+      
+      if(isSecond){
+        modalCommanderImage2 = img;
+        modalColors2 = (card.color_identity && card.color_identity.length) ? [...card.color_identity] : ['C'];
+        const backdrop = document.querySelector('.modal-backdrop');
+        if(backdrop && backdrop._fetchPrints2) backdrop._fetchPrints2(card.name, true);
+      } else {
+        modalCommanderImage = img;
+        modalColors = (card.color_identity && card.color_identity.length) ? [...card.color_identity] : ['C'];
+        
+        const hasPartner = hasPartnerAbility(card);
+        const backdrop = document.querySelector('.modal-backdrop');
+        if(backdrop && backdrop._togglePartnerUI) backdrop._togglePartnerUI(hasPartner);
+        if(backdrop && backdrop._fetchPrints) backdrop._fetchPrints(card.name, true);
+      }
     }catch(e){
       console.error('Scryfall card fetch failed', e);
     }
