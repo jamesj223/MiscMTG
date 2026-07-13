@@ -10,6 +10,7 @@
 - 006 - Reconsidering treating brackets the same as tags in the UI. Maybe they should be more separated (and with a different UI for selecting/filtering based on them)
 - 007 - Weird UI glitch at the bottom of the decks in bags. It looks like the top line of pixels is wrapping? I'm not sure how else to describe this. There is a bright line of pixels at the bottom of each card. Potentially solved/hidden by keeping the little footer the decks all have in the bottom section maybe?
 - 008 - Improve the partner commander split card UI. Maybe give the user some options? The diagonal split works for some partners, but for Gilanra and Alena, the way they're positioned in their art, you either cut off both their heads, or you get a weird two headed creature effect. Not necessarily bad, but looks kinda funny.
+- 009 - Deck names are a little hard to read. Maybe deck names and commander names should swap places/font/visibility?
 
 ## Done
 
