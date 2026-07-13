@@ -897,12 +897,18 @@
 
   async function fetchScryfallAutocomplete(q, listEl){
     try{
-      const res = await fetch('https://api.scryfall.com/cards/autocomplete?q=' + encodeURIComponent(q));
+      const clean = q.trim().replace(/["\\]/g, '');
+      const words = clean.split(/\s+/).filter(Boolean);
+      if(words.length === 0){ listEl.style.display='none'; return; }
+      const query = 'is:commander ' + words.map(w => `name:"${w}"`).join(' ');
+      const res = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent(query));
+      if(!res.ok){ listEl.style.display='none'; return; }
       const data = await res.json();
-      const names = data.data || [];
-      if(names.length === 0){ listEl.style.display='none'; return; }
+      const cards = data.data || [];
+      if(cards.length === 0){ listEl.style.display='none'; return; }
       listEl.innerHTML = '';
-      names.slice(0,8).forEach(n => {
+      cards.slice(0,8).forEach(c => {
+        const n = c.name;
         const item = document.createElement('div');
         item.textContent = n;
         item.addEventListener('mousedown', async (e)=>{
