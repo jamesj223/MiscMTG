@@ -1076,7 +1076,7 @@
       const clean = q.trim().replace(/["\\]/g, '');
       const words = clean.split(/\s+/).filter(Boolean);
       if(words.length === 0){ listEl.style.display='none'; return; }
-      const query = 'is:commander ' + words.map(w => `name:"${w}"`).join(' ');
+      const query = 'is:commander ' + (isSecond ? 'is:partner ' : '') + words.map(w => `name:"${w}"`).join(' ');
       const res = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent(query));
       if(!res.ok){ listEl.style.display='none'; return; }
       const data = await res.json();
