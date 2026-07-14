@@ -13,6 +13,11 @@
 - 009 - Deck names are a little hard to read. Maybe deck names and commander names should swap places/font/visibility?
 - 010 - Would be nice to be able to customize the positioning of the card art. Some cards would be better cropped/panned slightly differently than the current (I assume) approach of just grabbing the centre of the image.
 - 011 - Show tags + count for what's in bag
+- 012 - Bring back the add/edit hover to decks in bottom area, and add edit to decks in top area
+- 013 - Colour pips in WUBRG order
+- 014 - Look in to better save system (ideally cross device somehow)
+- 015 - Move it to it's own repo?
+- 016 - Host it somewhere? Probs Netlify
 
 ## Done
 
