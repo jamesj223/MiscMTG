@@ -1,0 +1,18 @@
+// Edge of Eternities Theme
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#46408b",
+        "activityBar.activeBackground": "#ccd555",
+        "activityBar.foreground": "#a8468b",
+        "activityBar.inactiveForeground": "#ccd555",
+        "activityBar.activeBorder": "#ccd555",
+        "titleBar.activeBackground": "#46408b",
+        "titleBar.inactiveBackground": "#46408b",
+        "statusBar.background": "#46408b",
+        "statusBar.foreground": "#ffffff",
+        "statusBar.debuggingBackground": "#46408b",
+        "statusBar.debuggingForeground": "#ffffff",
+        "statusBar.noFolderBackground": "#46408b",
+        "statusBar.noFolderForeground": "#ffffff"
+    }
+}
